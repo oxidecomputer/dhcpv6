@@ -211,6 +211,21 @@ pub struct DuidLLT {
     pub link_layer: Vec<u8>,
 }
 
+impl DuidLLT {
+    pub fn new(hw_type: u16, time: u32, ll: &[u8]) -> Result<DuidLLT> {
+        if ll.len() <= 120 {
+            Ok(DuidLLT {
+                type_code: 1,
+                hw_type,
+                time,
+                link_layer: ll.to_vec(),
+            })
+        } else {
+            Err(Error::BadOption("link-layer address too long".into()))
+        }
+    }
+}
+
 impl fmt::Debug for DuidLLT {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -252,6 +267,20 @@ pub struct DuidEn {
     pub type_code: u16, // constant 2
     pub enterprise_code: u32,
     pub identifier: Vec<u8>,
+}
+
+impl DuidEn {
+    pub fn new(enterprise_code: u32, id: &[u8]) -> Result<DuidEn> {
+        if id.len() <= 120 {
+            Ok(DuidEn {
+                type_code: 2,
+                enterprise_code,
+                identifier: id.to_vec(),
+            })
+        } else {
+            Err(Error::BadOption("identifier too long".into()))
+        }
+    }
 }
 
 impl fmt::Debug for DuidEn {
@@ -303,6 +332,20 @@ impl fmt::Debug for DuidLL {
             self.hw_type,
             hex(&self.link_layer)
         )
+    }
+}
+
+impl DuidLL {
+    pub fn new(hw_type: u16, ll: &[u8]) -> Result<DuidLL> {
+        if ll.len() <= 124 {
+            Ok(DuidLL {
+                type_code: 3,
+                hw_type,
+                link_layer: ll.to_vec(),
+            })
+        } else {
+            Err(Error::BadOption("link-layer address too long".into()))
+        }
     }
 }
 
