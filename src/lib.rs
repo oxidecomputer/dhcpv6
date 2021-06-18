@@ -3,7 +3,7 @@ use std::fmt;
 use std::net::Ipv6Addr;
 
 mod buffer;
-mod options;
+pub mod options;
 pub mod params;
 #[cfg(test)]
 mod test;
@@ -162,18 +162,28 @@ impl fmt::Debug for ClientMsg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "type: {:?}  txid: {:x}  options: {:?}",
+            "type: {:?}  txid: 0x{:x}  options: {:?}",
             self.msg_type, self.tx_id, self.options
         )
     }
 }
 
+impl fmt::Display for ClientMsg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}  txid: 0x{:x}", self.msg_type, self.tx_id)
+    }
+}
+
 impl ClientMsg {
     // Returns an initialized ClientMsg
-    pub fn new(msg_type: MsgType, tx_id: u32) -> ClientMsg {
+    pub fn new(msg_type: MsgType, tx_id: Option<u32>) -> ClientMsg {
+        let tx_id = match tx_id {
+            Some(x) => x,
+            None => rand::random(),
+        };
         ClientMsg {
             msg_type,
-            tx_id,
+            tx_id: (tx_id & 0xffffff),
             options: Vec::new(),
         }
     }
@@ -195,15 +205,33 @@ impl ClientMsg {
     }
 
     // Deparses the provided client message into a DHCPv6 packet
-    pub fn encode(msg: &ClientMsg) -> Result<Vec<u8>> {
+    pub fn encode(&self) -> Result<Vec<u8>> {
         let mut buf = Vec::with_capacity(2048);
 
-        buf.push(msg.msg_type as u8);
-        buf.push(((msg.tx_id >> 16) & 0xff) as u8);
-        buf.push(((msg.tx_id >> 8) & 0xff) as u8);
-        buf.push((msg.tx_id & 0xff) as u8);
-        buf.extend_from_slice(&options::encode_options(&msg.options)?);
+        buf.push(self.msg_type as u8);
+        buf.push(((self.tx_id >> 16) & 0xff) as u8);
+        buf.push(((self.tx_id >> 8) & 0xff) as u8);
+        buf.push((self.tx_id & 0xff) as u8);
+        buf.extend_from_slice(&options::encode_options(&self.options)?);
         Ok(buf)
+    }
+
+    /// Find the first option of the given type in the message's option list
+    pub fn find_one_option(&self, opt_type: u16) -> Option<&options::Dhcpv6Option> {
+        self.options.iter().find(|&o| opt_type == u16::from(o))
+    }
+
+    /// Find all options of the given type in the message's option list
+    pub fn find_all_options(&self, opt_type: u16) -> Vec<&options::Dhcpv6Option> {
+        self.options
+            .iter()
+            .filter(|&o| opt_type == u16::from(o))
+            .collect()
+    }
+
+    /// Returns 'true' iff the message's option list contains an option of the given type
+    pub fn has_option(&self, opt_type: u16) -> bool {
+        self.options.iter().any(|o| opt_type == u16::from(o))
     }
 }
 

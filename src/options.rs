@@ -55,11 +55,26 @@ pub enum Dhcpv6Option {
     Other(OtherOption),
 }
 
+/// Find the first option of the given type in the list
+pub fn find_one(list: &[Dhcpv6Option], opt_type: u16) -> Option<&Dhcpv6Option> {
+    list.iter().find(|&o| opt_type == u16::from(o))
+}
+
+/// Find all options of the given type in the list
+pub fn find_all(list: &[Dhcpv6Option], opt_type: u16) -> Vec<&Dhcpv6Option> {
+    list.iter().filter(|&o| opt_type == u16::from(o)).collect()
+}
+
+/// Returns 'true' iff the list contains an option of the given type
+pub fn any(list: &[Dhcpv6Option], opt_type: u16) -> bool {
+    list.iter().any(|o| opt_type == u16::from(o))
+}
+
 // Ignore the warning because this is an asymmetric operation
 #[allow(clippy::from_over_into)]
-impl Into<u16> for &Dhcpv6Option {
-    fn into(self) -> u16 {
-        match self {
+impl From<&Dhcpv6Option> for u16 {
+    fn from(opt: &Dhcpv6Option) -> u16 {
+        match opt {
             Dhcpv6Option::ClientId(_) => OPTION_CLIENTID,
             Dhcpv6Option::ServerId(_) => OPTION_SERVERID,
             Dhcpv6Option::IaNa(_) => OPTION_IA_NA,
@@ -203,7 +218,7 @@ impl OptionParse for Vec<Ipv6Addr> {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct DuidLLT {
     pub type_code: u16, // constant 1
     pub hw_type: u16,
@@ -262,7 +277,7 @@ impl OptionParse for DuidLLT {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct DuidEn {
     pub type_code: u16, // constant 2
     pub enterprise_code: u32,
@@ -316,7 +331,7 @@ impl OptionParse for DuidEn {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct DuidLL {
     pub type_code: u16, // constant 3
     pub hw_type: u16,
@@ -370,7 +385,7 @@ impl OptionParse for DuidLL {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Duid {
     Llt(DuidLLT),
     En(DuidEn),
