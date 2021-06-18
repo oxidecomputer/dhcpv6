@@ -122,6 +122,77 @@ impl From<MsgType> for u8 {
     }
 }
 
+/// RFC-defined parameters governing how frequently, and for how long, a
+/// message should be retransmitted before accepting that no one is listening.
+pub struct RetransmitParams {
+    pub irt: u32, // Initial retransmission time
+    pub mrt: u32, // Maximum retransmission time
+    pub mrc: u32, // Maximum retransmission count
+    pub mrd: u32, // Maximum retransmission duration
+}
+
+/// Returns the appropriate retransmit parameters for the given message type.
+/// None will be returned for messages that are not intended to be
+/// retransmitted.
+///
+/// Note - the following message types have one or more dynamic parameters,
+/// which depend on the state of the associated lease: MsgType::Renew,
+/// MsgType::Rebind
+pub fn retransmit_params(msg_type: MsgType) -> Option<RetransmitParams> {
+    match msg_type {
+        MsgType::Solicit => Some(RetransmitParams {
+            irt: params::SOL_TIMEOUT,
+            mrt: params::SOL_MAX_RT,
+            mrc: 0,
+            mrd: 0,
+        }),
+        MsgType::Request => Some(RetransmitParams {
+            irt: params::REQ_TIMEOUT,
+            mrt: params::REQ_MAX_RT,
+            mrc: params::REQ_MAX_RC,
+            mrd: 0,
+        }),
+        MsgType::Confirm => Some(RetransmitParams {
+            irt: params::CNF_TIMEOUT,
+            mrt: params::CNF_MAX_RT,
+            mrc: 0,
+            mrd: params::CNF_MAX_RD,
+        }),
+        MsgType::Renew => Some(RetransmitParams {
+            irt: params::REN_TIMEOUT,
+            mrt: params::REN_MAX_RT,
+            mrc: 0,
+            mrd: 0, // not fixed - it depends on T2
+        }),
+        MsgType::Rebind => Some(RetransmitParams {
+            irt: params::REB_TIMEOUT,
+            mrt: params::REB_MAX_RT,
+            mrc: 0,
+            mrd: 0, // not fixed - it depends on the remaining lifetimes
+                    // of all addresses
+        }),
+        MsgType::Release => Some(RetransmitParams {
+            irt: params::REL_TIMEOUT,
+            mrt: 0,
+            mrc: params::REL_MAX_RC,
+            mrd: 0,
+        }),
+        MsgType::Decline => Some(RetransmitParams {
+            irt: params::DEC_TIMEOUT,
+            mrt: 0,
+            mrc: params::DEC_MAX_RC,
+            mrd: 0,
+        }),
+        MsgType::InformationRequest => Some(RetransmitParams {
+            irt: params::INF_TIMEOUT,
+            mrt: params::INF_MAX_RT,
+            mrc: 0,
+            mrd: 0,
+        }),
+        _ => None,
+    }
+}
+
 /// All of the DHCPv6 status codes defined in rfc3315
 #[derive(PartialEq)]
 pub enum StatusCode {
