@@ -194,7 +194,7 @@ pub fn retransmit_params(msg_type: MsgType) -> Option<RetransmitParams> {
 }
 
 /// All of the DHCPv6 status codes defined in rfc3315
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum StatusCode {
     Success = 0,
     UnspecFail = 1,
@@ -204,7 +204,23 @@ pub enum StatusCode {
     UseMulticast = 5,
 }
 
-impl fmt::Debug for StatusCode {
+impl TryFrom<u16> for StatusCode {
+    type Error = ();
+
+    fn try_from(code: u16) -> std::result::Result<Self, Self::Error> {
+        match code {
+            0 => Ok(StatusCode::Success),
+            1 => Ok(StatusCode::UnspecFail),
+            2 => Ok(StatusCode::NoAddrsAvail),
+            3 => Ok(StatusCode::NoBinding),
+            4 => Ok(StatusCode::NotOnLink),
+            5 => Ok(StatusCode::UseMulticast),
+            _ => Err(()),
+        }
+    }
+}
+
+impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -221,12 +237,34 @@ impl fmt::Debug for StatusCode {
     }
 }
 
+impl fmt::Debug for StatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 /// Client-Server DHCPv6 message as defined in rfc3315, section 6.
 #[derive(PartialEq)]
 pub struct ClientMsg {
     pub msg_type: MsgType,
     pub tx_id: u32,
     pub options: Vec<options::Dhcpv6Option>,
+}
+
+/// Find the first option of the given type in the option list
+pub fn find_one_option(
+    list: &[options::Dhcpv6Option],
+    opt_type: u16,
+) -> Option<&options::Dhcpv6Option> {
+    list.iter().find(|&o| opt_type == u16::from(o))
+}
+
+/// Find all options of the given type in the option list
+pub fn find_all_options(
+    list: &[options::Dhcpv6Option],
+    opt_type: u16,
+) -> Vec<&options::Dhcpv6Option> {
+    list.iter().filter(|&o| opt_type == u16::from(o)).collect()
 }
 
 impl fmt::Debug for ClientMsg {
@@ -289,15 +327,12 @@ impl ClientMsg {
 
     /// Find the first option of the given type in the message's option list
     pub fn find_one_option(&self, opt_type: u16) -> Option<&options::Dhcpv6Option> {
-        self.options.iter().find(|&o| opt_type == u16::from(o))
+        find_one_option(&self.options, opt_type)
     }
 
     /// Find all options of the given type in the message's option list
     pub fn find_all_options(&self, opt_type: u16) -> Vec<&options::Dhcpv6Option> {
-        self.options
-            .iter()
-            .filter(|&o| opt_type == u16::from(o))
-            .collect()
+        find_all_options(&self.options, opt_type)
     }
 
     /// Returns 'true' iff the message's option list contains an option of the given type

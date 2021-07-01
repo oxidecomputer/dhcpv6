@@ -55,21 +55,6 @@ pub enum Dhcpv6Option {
     Other(OtherOption),
 }
 
-/// Find the first option of the given type in the list
-pub fn find_one(list: &[Dhcpv6Option], opt_type: u16) -> Option<&Dhcpv6Option> {
-    list.iter().find(|&o| opt_type == u16::from(o))
-}
-
-/// Find all options of the given type in the list
-pub fn find_all(list: &[Dhcpv6Option], opt_type: u16) -> Vec<&Dhcpv6Option> {
-    list.iter().filter(|&o| opt_type == u16::from(o)).collect()
-}
-
-/// Returns 'true' iff the list contains an option of the given type
-pub fn any(list: &[Dhcpv6Option], opt_type: u16) -> bool {
-    list.iter().any(|o| opt_type == u16::from(o))
-}
-
 // Ignore the warning because this is an asymmetric operation
 #[allow(clippy::from_over_into)]
 impl From<&Dhcpv6Option> for u16 {
@@ -218,7 +203,7 @@ impl OptionParse for Vec<Ipv6Addr> {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Eq, Hash, Clone, PartialEq)]
 pub struct DuidLLT {
     pub type_code: u16, // constant 1
     pub hw_type: u16,
@@ -277,7 +262,7 @@ impl OptionParse for DuidLLT {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Eq, Hash, Clone, PartialEq)]
 pub struct DuidEn {
     pub type_code: u16, // constant 2
     pub enterprise_code: u32,
@@ -331,7 +316,7 @@ impl OptionParse for DuidEn {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Eq, Hash, Clone, PartialEq)]
 pub struct DuidLL {
     pub type_code: u16, // constant 3
     pub hw_type: u16,
@@ -385,7 +370,7 @@ impl OptionParse for DuidLL {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Eq, Hash, Clone, Debug, PartialEq)]
 pub enum Duid {
     Llt(DuidLLT),
     En(DuidEn),
@@ -423,6 +408,17 @@ pub struct IaNaOption {
     pub t1: u32,
     pub t2: u32,
     pub options: Vec<Dhcpv6Option>,
+}
+
+impl IaNaOption {
+    pub fn new(iaid: u32) -> Self {
+        IaNaOption {
+            iaid,
+            t1: 0,
+            t2: 0,
+            options: Vec::new(),
+        }
+    }
 }
 
 impl PartialEq for IaNaOption {
@@ -473,6 +469,15 @@ pub struct IaTaOption {
     pub options: Vec<Dhcpv6Option>,
 }
 
+impl IaTaOption {
+    pub fn new(iaid: u32) -> Self {
+        IaTaOption {
+            iaid,
+            options: Vec::new(),
+        }
+    }
+}
+
 impl PartialEq for IaTaOption {
     fn eq(&self, other: &Self) -> bool {
         self.iaid == other.iaid && compare_options(&self.options, &other.options).is_ok()
@@ -505,6 +510,17 @@ pub struct IaAddrOption {
     pub preferred_lifetime: u32,
     pub valid_lifetime: u32,
     pub options: Vec<Dhcpv6Option>,
+}
+
+impl IaAddrOption {
+    pub fn new(addr: Ipv6Addr) -> Self {
+        IaAddrOption {
+            addr,
+            preferred_lifetime: 0,
+            valid_lifetime: 0,
+            options: Vec::new(),
+        }
+    }
 }
 
 impl PartialEq for IaAddrOption {
@@ -552,7 +568,7 @@ impl OptionParse for IaAddrOption {
 
 #[derive(PartialEq)]
 pub struct StatusCodeOption {
-    pub code: u16,
+    pub code: StatusCode,
     pub msg: Vec<u8>,
 }
 
@@ -568,14 +584,16 @@ impl fmt::Debug for StatusCodeOption {
 
 impl OptionParse for StatusCodeOption {
     fn parse(len: usize, buf: &mut Buffer) -> Result<StatusCodeOption> {
-        let code = buf.get_16()?;
+        let code = StatusCode::try_from(buf.get_16()?)
+            .map_err(|_| Error::Other("invalid status code".to_string()))?;
         let msg = buf.get_bytes(len - 2)?;
         Ok(StatusCodeOption { code, msg })
     }
 
     fn encode(&self) -> Result<Vec<u8>> {
         let mut v = Vec::new();
-        v.extend_from_slice(&self.code.to_be_bytes());
+        let code = self.code as u16;
+        v.extend_from_slice(&code.to_be_bytes());
         v.extend_from_slice(&self.msg);
         Ok(v)
     }
