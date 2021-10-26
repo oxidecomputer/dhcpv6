@@ -1,3 +1,5 @@
+// Copyright 2021 Oxide Computer Company
+
 use std::collections::HashSet;
 
 use crate::buffer::Buffer;

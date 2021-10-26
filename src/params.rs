@@ -1,3 +1,5 @@
+// Copyright 2021 Oxide Computer Company
+
 pub const SOL_MAX_DELAY: u32 = 1; // Max delay of first Solicit
 pub const SOL_TIMEOUT: u32 = 1; // Initial Solicit timeout
 pub const SOL_MAX_RT: u32 = 120; // Max Solicit timeout value

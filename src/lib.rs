@@ -1,3 +1,5 @@
+// Copyright 2021 Oxide Computer Company
+
 use std::convert::{From, TryFrom};
 use std::fmt;
 use std::net::Ipv6Addr;
